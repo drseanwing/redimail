@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: redi-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-redi_emails}
+      POSTGRES_USER: ${POSTGRES_USER:-redi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-redi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - redi-network
+
+  # REdI Email Processing API
+  api:
+    build: .
+    container_name: redi-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-redi}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-redi_emails}
+      
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-0}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-1000}
+      
+      # API Configuration
+      REDI_API_KEY: ${REDI_API_KEY}
+      
+      # Confidence Thresholds
+      CONFIDENCE_THRESHOLD_HIGH: ${CONFIDENCE_THRESHOLD_HIGH:-0.8}
+      CONFIDENCE_THRESHOLD_MODERATE: ${CONFIDENCE_THRESHOLD_MODERATE:-0.5}
+      CONFIDENCE_THRESHOLD_LOW: ${CONFIDENCE_THRESHOLD_LOW:-0.3}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Flask
+      FLASK_ENV: ${FLASK_ENV:-production}
+      FLASK_DEBUG: ${FLASK_DEBUG:-false}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/var/log/redi
+      - ./templates:/app/templates
+    networks:
+      - redi-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: redi-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@redi.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - redi-network
+    profiles:
+      - admin  # Only start with: docker-compose --profile admin up
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  redi-network:
+    driver: bridge
