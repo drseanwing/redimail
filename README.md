@@ -1,6 +1,6 @@
 # REdI Email Processing API
 
-**Automated email processing system for the Resuscitation Education Initiative (REdI) at Royal Brisbane & Women's Hospital.**
+**Automated email processing system for the Resuscitation Education Initiative (REdI).**
 
 This API intelligently processes incoming emails using GPT-4, applies sensitivity detection, and automatically responds to common queries while flagging complex cases for human review.
 
@@ -429,15 +429,6 @@ docker exec redi-db pg_isready -U redi
 ## License
 
 Internal use only - Royal Brisbane & Women's Hospital
-
-## Support
-
-**Technical Issues:**
-- Sean Wing: sean.wing@health.qld.gov.au
-
-**REdI Team:**
-- Email: redi@health.qld.gov.au
-- Phone: (07) 3647 0106
 
 ## Changelog
 
