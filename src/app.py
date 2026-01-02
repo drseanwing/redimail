@@ -408,22 +408,25 @@ class GPTClient:
     """
     OpenAI GPT API client with retry logic and error handling.
     """
-    
+
     def __init__(self, api_key: str, model: str, temperature: float, max_tokens: int):
         """
         Initialize GPT client.
-        
+
         Args:
             api_key: OpenAI API key
             model: Model name (e.g., 'gpt-4o')
             temperature: Temperature setting (0-1)
             max_tokens: Maximum tokens in response
         """
+        from openai import OpenAI
+
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
-        
+        self.client = OpenAI(api_key=api_key)
+
         logger.info(f"GPT Client initialized: {model}, temp={temperature}")
     
     def call_gpt(
@@ -444,20 +447,16 @@ class GPTClient:
             GPTResponse object or None if error
         """
         try:
-            import openai
-            
-            openai.api_key = self.api_key
-            
             # Build user message with email and context
             user_message = self._build_user_message(email, context)
-            
+
             logger.info(f"Calling GPT API: {self.model}")
             logger.debug(f"User message length: {len(user_message)} chars")
-            
-            # Call OpenAI API
+
+            # Call OpenAI API (v1.x syntax)
             start_time = time.time()
-            
-            response = openai.ChatCompletion.create(
+
+            response = self.client.chat.completions.create(
                 model=self.model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
@@ -467,13 +466,13 @@ class GPTClient:
                 ],
                 response_format={"type": "json_object"}
             )
-            
+
             api_time = time.time() - start_time
-            
-            # Extract response
+
+            # Extract response (v1.x uses attributes instead of dict access)
             content = response.choices[0].message.content
             tokens_used = response.usage.total_tokens
-            
+
             logger.info(
                 f"GPT API call successful: {api_time:.2f}s, "
                 f"{tokens_used} tokens"
